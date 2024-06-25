@@ -1,0 +1,104 @@
+-- Creating the database
+
+create or replace database snow_flake_spotify
+
+-- creating the schema
+
+SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA
+
+-- creating the tables
+
+create or replace table SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.artist_table(
+artist_id varchar(30),
+artist_name varchar(30),
+external_url varchar(100)
+);
+
+create or replace table SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.album_table(
+album_id STRING,
+    name STRING,
+    release_date DATE,
+    total_tracks INTEGER,
+    url STRING
+);
+
+create or replace table SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.songs_table(
+song_id varchar(30),
+song_name string,
+song_duration double,
+song_url string,
+song_popularity int,
+song_release_date string,
+artist_id string
+);
+
+-- creating the file format
+
+CREATE OR REPLACE FILE FORMAT SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.my_csv_format
+TYPE = 'CSV'
+FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+SKIP_HEADER = 1
+FIELD_DELIMITER = ',';
+
+-- Creating the stages
+
+create or replace stage SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.album_stage 
+URL='s3://spotifybuckets/Transformed data/album_data/'
+CREDENTIALS=(AWS_KEY_ID='AKIAXYKJS5OOJMH512RSMX' AWS_SECRET_KEY='Aw97i1w212Zt9ujxM2PKLsXh5k6HwnTfmJAUH1OYyLI')
+File_format = my_csv_format
+
+list @SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.album_stage
+
+create or replace stage SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.artists_stage 
+URL='s3://spotifybuckets/Transformed data/artists_data/'
+CREDENTIALS=(AWS_KEY_ID='AKIAXYKJS5OO2321312JMH5RSMX' AWS_SECRET_KEY='Aw97i1321wZt9ujxM2PKLsXh5k6HwnTfmJAUH1OYyLI')
+File_format = my_csv_format
+
+list @SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.artists_stage
+
+create or replace stage SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.songs_stage 
+URL='s3://spotifybuckets/Transformed data/songs_data/'
+CREDENTIALS=(AWS_KEY_ID='AKIAXYKJS5OOJ231212MH5RSMX' AWS_SECRET_KEY='Aw97i1wZt9232131ujxM2PKLsXh5k6HwnTfmJAUH1OYyLI')
+File_format = my_csv_format
+
+list @SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.songs_stage
+
+-- creating the pipes
+
+create or replace pipe SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.album_data_pipe
+auto_ingest = True
+as copy into SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.album_table(album_id, name, release_date, total_tracks, url) 
+from 
+@SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.album_stage FILE_FORMAT = (FORMAT_NAME = 'SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.my_csv_format')
+
+desc pipe SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.album_data_pipe
+
+create or replace pipe SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.artists_data_pipe
+auto_ingest = True
+as copy into SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.artist_table( artist_id, artist_name, external_url) from 
+@SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.artists_stage FILE_FORMAT = (FORMAT_NAME = 'SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.my_csv_format')
+
+desc pipe SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.artists_data_pipe
+
+create or replace pipe SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.songs_data_pipe
+auto_ingest = True
+as copy into SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.songs_table( song_id, song_name, song_duration, song_url, song_popularity,
+song_release_date, artist_id) from
+@SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.songs_stage FILE_FORMAT = (FORMAT_NAME = 'SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.my_csv_format')
+
+desc pipe SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.songs_data_pipe
+
+-- Testing the pipeline with automation
+
+select * from SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.album_table
+
+select * from SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.artist_table
+
+select * from SNOW_FLAKE_SPOTIFY.LOADING_SCHEMA.songs_table
+
+
+-- Debugging the pipelines
+
+SELECT SYSTEM$PIPE_STATUS('songs_data_pipe');
+
+SELECT SYSTEM$PIPE_STATUS('artists_data_pipe');
